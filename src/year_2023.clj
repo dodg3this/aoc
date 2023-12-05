@@ -3,6 +3,7 @@
             [clojure.pprint :as pprint]))
 
 ;;Day 01
+;;--------------------------------------------------------------------------------
 
 (def sample-01
   "1abc2
@@ -43,17 +44,16 @@ zoneight234
   (->> (s/split input #"\n")
        (map #(let [f (re-find #"\d|one|two|three|four|five|six|seven|eight|nine" %)
                    l (re-find #"\d|eno|owt|eerht|ruof|evif|xis|neves|thgie|enin" (s/reverse %))]
-               (Integer/parseInt (str (to-num f) (to-num (s/reverse l))))
-               ))
+               (Integer/parseInt (str (to-num f) (to-num (s/reverse l))))))
        (reduce +)))
 
 ;; (day-01-b sample-01-b)
 ;; (clojure.pprint/pprint (day-01-a (slurp "resources/day-01.txt")))
 ;; (clojure.pprint/pprint (day-01-b (slurp "resources/day-01.txt")))
-;;
-;;
-;;
-;;
+
+;;Day 02
+;;--------------------------------------------------------------------------------
+
 (defn bigger [a b]
   (if (> a b) a b))
 
@@ -66,13 +66,12 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green")
 
 (defn day-02 [input]
   (for [l (s/split input #"\n")
-                                          :let [i (re-find #"Game (\d+):" l)
-                                                draws (s/split (second (s/split l #": ")) #"; ")
-                                                drws (reduce #(->> (into {} (for [d  (s/split %2 #", ")
-                                                                                  :let [[n c] (s/split d #" ")]]
-                                                                              [c (parse-long n)]))
-                                                                   (merge-with bigger %1)) {} draws)
-                                                ]] [(parse-long (second i)) drws]))
+        :let [i (re-find #"Game (\d+):" l)
+              draws (s/split (second (s/split l #": ")) #"; ")
+              drws (reduce #(->> (into {} (for [d  (s/split %2 #", ")
+                                                :let [[n c] (s/split d #" ")]]
+                                            [c (parse-long n)]))
+                                 (merge-with bigger %1)) {} draws)]] [(parse-long (second i)) drws]))
 
 (defn day-02-a [input]
   (reduce +  (keys (into {} (filter (fn [[i drws]]
@@ -90,4 +89,4 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green")
                  (day-02 input))))
 
 ;; (day-02-b sample-02)
-(day-02-b (slurp "resources/day-02.txt"))
+;; (day-02-b (slurp "resources/day-02.txt"))
