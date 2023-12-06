@@ -90,3 +90,139 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green")
 
 ;; (day-02-b sample-02)
 ;; (day-02-b (slurp "resources/day-02.txt"))
+
+;;Day-03
+;;--------------------------------------------------------------------------------
+
+(def sample-03
+  "467..114..
+...*......
+..35..633.
+......#...
+617*......
+.....+.58.
+..592.....
+......755.
+...$.*....
+.664.598..")
+
+(defn adjacents [i l]
+  (let [row (quot i 10)
+        column (mod i 10)]
+    (cond
+      (zero? column) #{})))
+
+(defn day-03-a [input]
+  (let [lines (s/split input #"\n")
+        normalized (apply str lines)
+        numbers (map #(vec [% (re-seq #"\d+" %)]) lines)]
+    (map (fn [[l nums]]
+           (for [n nums
+                 :let [i (+ (s/index-of normalized l) (s/index-of l n))
+                       c (count n)
+                       indexes (map #(get normalized %) (filter nat-int? #{(+ i c) (- i 1) (- i 10) (- i 11) (- i 9) (+ i 10) (+ i 11) (+ i 9)}))]]
+             [i c indexes n])) numbers)))
+
+;;Day 05
+;;----------------------------------------------------------------------------------
+
+(def sample-05
+  "seeds: 79 14 55 13
+
+seed-to-soil map:
+50 98 2
+52 50 48
+
+soil-to-fertilizer map:
+0 15 37
+37 52 2
+39 0 15
+
+fertilizer-to-water map:
+49 53 8
+0 11 42
+42 0 7
+57 7 4
+
+water-to-light map:
+88 18 7
+18 25 70
+
+light-to-temperature map:
+45 77 23
+81 45 19
+68 64 13
+
+temperature-to-humidity map:
+0 69 1
+1 0 69
+
+humidity-to-location map:
+60 56 37
+56 93 4")
+
+(defn next-map [ranges n]
+  ;; (pprint/pprint (str "^^^^^^^^^^^^^^" n))
+
+  (loop [mappings ranges result -1]
+    (cond
+      (nat-int? result) result
+      (empty? mappings) n
+      :else (let [[sink-start source-start range] (first mappings)]
+              (if (<= source-start n (+ source-start range))
+                (+ sink-start (- n source-start))
+                (recur (rest mappings) result))))))
+
+(defn day-05-a [input]
+  (let [[initial-seeds & sink-source-map] (s/split input #"\n\n")
+
+        initial-seed (apply concat (map  (fn [[start r]] (range start (+ r start))) (partition 2 (map parse-long (re-seq #"\d+" initial-seeds)))))]
+    (first (sort (let [mappings (for [m sink-source-map
+                                      :let [lines (s/split m #"\n")
+                                            [name & data] lines
+                                            mappings  (map #(->> (s/split % #" ")
+                                                                 (map parse-long)) data)]
+                                      ;; :when (= name "seed-to-soil map:")
+                                      ]
+                                  mappings)]
+                   (reduce (fn [r mp]
+                             (let [b (map #(next-map mp %) r)]
+                               (pprint/pprint (apply str b))
+                               b)) initial-seed mappings))))))
+
+;; (clojure.pprint/pprint (day-05-a sample-05))
+;; (pprint/pprint (day-05-a (slurp "resources/day-05.txt")))
+
+;; Day 06
+;; --------------------------------------------------------------------------------
+
+(def sample-06
+  "Time:      7  15   30
+Distance:  9  40  200")
+
+(defn input-06 [input]
+  (apply zipmap (map #(->> (re-seq #"\d+" %)
+                           (map parse-long)) (s/split input #"\n"))))
+(defn input-06-b [input]
+  (map #(->> (apply str (re-seq #"\d+" %))
+             (parse-long)) (s/split input #"\n")))
+(defn day-06-a [input]
+  (apply * (->> (input-06 input)
+                (map (fn [[t d]]
+                       (count (for [i (range 1 t)
+                                    :let [di (* i (- t i))]
+                                    :when (> di d)]
+                                i)))))))
+
+(defn day-06 [[t d]]
+  (count (for [i (range 1 t)
+               :let [di (* i (- t i))]
+               :when (> di d)]
+           i)))
+
+(defn day-06-b [input]
+  (apply * (->> (input-06 input)
+                (map day-06))))
+;; (day-06-a sample-06)
+;; (day-06-a (slurp "resources/day-06.txt"))
+;; (day-06 (input-06-b (slurp "resources/day-06.txt")))
