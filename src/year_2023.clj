@@ -203,9 +203,11 @@ Distance:  9  40  200")
 (defn input-06 [input]
   (apply zipmap (map #(->> (re-seq #"\d+" %)
                            (map parse-long)) (s/split input #"\n"))))
+
 (defn input-06-b [input]
   (map #(->> (apply str (re-seq #"\d+" %))
              (parse-long)) (s/split input #"\n")))
+
 (defn day-06-a [input]
   (apply * (->> (input-06 input)
                 (map (fn [[t d]]
@@ -226,3 +228,94 @@ Distance:  9  40  200")
 ;; (day-06-a sample-06)
 ;; (day-06-a (slurp "resources/day-06.txt"))
 ;; (day-06 (input-06-b (slurp "resources/day-06.txt")))
+
+;;Day 07
+;;-------------------------------------------------------------------
+
+(def sample-07
+  "32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483")
+
+(def cards (zipmap '(\2 \3 \4 \5 \6 \7 \8 \9 \T \J \Q \K \A) (range 2 15)))
+(def cards-b (zipmap '(\J \2 \3 \4 \5 \6 \7 \8 \9 \T \Q \K \A) (range 2 15)))
+
+(def type-hierarchy
+  {:high-card 1
+   :pair 2
+   :two-pairs 3
+   :three-of-a-kind 4
+   :full-house 5
+   :four-of-a-kind 6
+   :five-of-a-kind 7})
+
+(defn sort-by-vals [hand]
+  (let [f (frequencies hand)]
+    (into (sorted-map-by (fn [key1 key2]
+                           (compare [(get f key2) key2]
+                                    [(get f key1) key1])))
+          f)))
+
+(defn joke [hand]
+  (let [jokers (count (filter #(= \J %) hand))
+        f (sort-by-vals (map cards-b (filter #(not= \J %) hand)))]
+    ;; (pprint/pprint (str "**********"jokers f))
+    (if (seq f)
+      (update f (first (keys f)) + jokers)
+      {\J jokers})))
+
+(defn type [freq]
+  (let [f freq
+        v (vals freq)]
+    (cond
+      (= 1 (count f)) :five-of-a-kind
+      (= 2 (count f)) (cond
+                        (= 1 (count (filter #(= 4 %) v))) :four-of-a-kind
+                        :else :full-house)
+      (= 3 (count f)) (cond
+                        (= 1 (count (filter #(= 3 %) v))) :three-of-a-kind
+                        :else :two-pairs)
+      (= 4 (count f)) :pair
+      :else :high-card)))
+
+(defn tie-breaker [hand1 hand2]
+
+  (loop [h1 hand1 h2 hand2]
+    (let [c1 (first h1)
+          c2 (first h2)]
+      (if (= c1 c2)
+        (recur (rest h1) (rest h2))
+        (> c1 c2)))))
+
+(defn strongest [hand1 hand2]
+  (let [t1 (type hand1)
+        t2 (type hand2)]
+    (if (= (type-hierarchy t1) (type-hierarchy t2))
+      (tie-breaker (map cards-b hand1) (map cards-b hand2))
+      ;; (stronger (sort-by-vals (map cards hand1)) (sort-by-vals (map cards hand2))) ;;real poker rules
+      (> (type-hierarchy t1) (type-hierarchy t2)))))
+
+(defn strongest-b [hand1 hand2]
+  (let [t1 (type (joke hand1))
+        t2 (type (joke hand2))]
+    (if (= (type-hierarchy t1) (type-hierarchy t2))
+      (tie-breaker (map cards-b hand1) (map cards-b hand2))
+      ;; (stronger (sort-by-vals (map cards hand1)) (sort-by-vals (map cards hand2)))
+      (> (type-hierarchy t1) (type-hierarchy t2)))))
+
+(defn day-07 [input]
+ (let [data (s/split input #"\n")]
+  (->> data
+       (map #(s/split % #" "))
+       (into (sorted-map-by strongest-b))
+       (vals)
+       (interleave (range (count data) 0 -1))
+       (partition 2)
+       (reduce (fn [r [k bet]]
+       (+ r (* k (parse-long bet)))) 0)
+       )))
+
+
+;; Day 08
