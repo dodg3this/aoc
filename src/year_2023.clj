@@ -302,20 +302,91 @@ QQQJA 483")
         t2 (type (joke hand2))]
     (if (= (type-hierarchy t1) (type-hierarchy t2))
       (tie-breaker (map cards-b hand1) (map cards-b hand2))
-      ;; (stronger (sort-by-vals (map cards hand1)) (sort-by-vals (map cards hand2)))
       (> (type-hierarchy t1) (type-hierarchy t2)))))
 
 (defn day-07 [input]
- (let [data (s/split input #"\n")]
-  (->> data
-       (map #(s/split % #" "))
-       (into (sorted-map-by strongest-b))
-       (vals)
-       (interleave (range (count data) 0 -1))
-       (partition 2)
-       (reduce (fn [r [k bet]]
-       (+ r (* k (parse-long bet)))) 0)
-       )))
-
+  (let [data (s/split input #"\n")]
+    (->> data
+         (map #(s/split % #" "))
+         (into (sorted-map-by strongest-b))
+         (vals)
+         (interleave (range (count data) 0 -1))
+         (partition 2)
+         (reduce (fn [r [k bet]]
+                   (+ r (* k (parse-long bet)))) 0))))
 
 ;; Day 08
+
+(def sample-08
+  "RL
+
+AAA = (BBB, CCC)
+BBB = (DDD, EEE)
+CCC = (ZZZ, GGG)
+DDD = (DDD, DDD)
+EEE = (EEE, EEE)
+GGG = (GGG, GGG)
+ZZZ = (ZZZ, ZZZ)")
+
+(def sample-08-2
+  "LLR
+
+AAA = (BBB, BBB)
+BBB = (AAA, ZZZ)
+ZZZ = (ZZZ, ZZZ)")
+
+(def sample-08-b
+  "LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)")
+
+(defn gcd [a b]
+  (if (zero? b)
+    a
+    (recur b (mod a b))))
+
+(defn lcm [a b & more]
+  (if (empty? more)
+    (/ (* a b) (gcd a b))
+    (recur (lcm a b) (first more) (rest more))))
+
+(defn path-length [{:keys [start destinations directions lookup r] :or {r 0} :as data}]
+  (if (some #(= start %) destinations)
+    r
+    (let [n (condp = (first directions)
+              "L" (first (get lookup start))
+              "R" (second (get lookup start)))]
+      (recur (assoc data :start n :directions (rest directions) :r (inc r))))))
+
+(defn parse-08 [input]
+  (let [[ds _ & rs] (clojure.string/split input #"\n")
+        node-map (into {} (map #(let [[b & rst] (->> (re-find #"(\S+) = \((\S+), (\S+)\)" %)
+                                                     rest)] [b rst]) rs))
+        directions (s/split ds #"")]
+    [directions node-map]))
+
+(defn day-08 [[directions node-map] starting-points destinations]
+  (for [starting-point starting-points]
+    (path-length {:start starting-point :destinations destinations :directions  (cycle directions) :lookup  node-map})))
+
+(defn day-08-b [input]
+  (let [[directions node-map] (parse-08 input)
+        starting-points (filter #(s/ends-with? % "A") (keys node-map))
+        destinations (filter #(s/ends-with? % "Z") (keys node-map))]
+    (apply lcm (day-08 [directions node-map] starting-points destinations))))
+
+(defn day-08-a [input]
+  (first (day-08 (parse-08 input) ["AAA"] ["ZZZ"])))
+
+;; (day-08-a (slurp "resources/day-08.txt"))
+(day-08-b (slurp "resources/day-08.txt"))
+
+;;Day 09
+;;-------------------------------------------------------------------
