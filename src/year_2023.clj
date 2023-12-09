@@ -316,6 +316,7 @@ QQQJA 483")
                    (+ r (* k (parse-long bet)))) 0))))
 
 ;; Day 08
+;; -------------------------------------------------------------------
 
 (def sample-08
   "RL
@@ -380,13 +381,60 @@ XXX = (XXX, XXX)")
   (let [[directions node-map] (parse-08 input)
         starting-points (filter #(s/ends-with? % "A") (keys node-map))
         destinations (filter #(s/ends-with? % "Z") (keys node-map))]
-    (apply lcm (day-08 [directions node-map] starting-points destinations))))
+    (apply lcm
+           (day-08 [directions node-map] starting-points destinations))))
 
 (defn day-08-a [input]
   (first (day-08 (parse-08 input) ["AAA"] ["ZZZ"])))
 
 ;; (day-08-a (slurp "resources/day-08.txt"))
-(day-08-b (slurp "resources/day-08.txt"))
+;; (pprint/pprint (day-08-b (slurp "resources/day-08.txt")))
 
 ;;Day 09
+;;-------------------------------------------------------------------
+
+(def sample-09
+  "0 3 6 9 12 15
+1 3 6 10 15 21
+10 13 16 21 30 45")
+
+;;1 3 6 10 15 21
+;; 2 3 4 5  6
+;; 1 1 1 1
+;; 0 0 0
+;;
+;;   -4  5 10 13 16 21 30 45
+;;     9  5  3  3  5  9 15
+;;      -4  -2  0  2  4  6
+;;         2  2  2  2  2
+;;           0  0  0  0
+
+(defn parse-09 [input] (->> (s/split input #"\n")
+                            (map #(->> (s/split % #" ")
+                                       (map parse-long)))))
+
+(defn convergence [a]
+  ;; (pprint/pprint a)
+  (loop [sq a r (cons (first a) '())]
+    (let [diff (->> (take-while #(= 2 (count %)) (partition-all 2 1 sq))
+                    (map #(- (second %) (first %))))]
+      ;; (pprint/pprint diff)
+      (if (every? zero? diff)
+        r
+        (recur diff (cons (first diff) r))))))
+
+(defn backtrack [a]
+  ;; (pprint/pprint a)
+  (reduce (fn [r n]
+            (- n r)) 0 a))
+
+(defn day-09 [input]
+  (apply +
+         (for [sq (parse-09 (slurp input))]
+           (backtrack (convergence sq)))))
+
+;; (day-09 "resources/day-09.txt")
+;; (day-09 sample-09)
+
+;;Day 10
 ;;-------------------------------------------------------------------
