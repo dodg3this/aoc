@@ -398,33 +398,19 @@ XXX = (XXX, XXX)")
 1 3 6 10 15 21
 10 13 16 21 30 45")
 
-;;1 3 6 10 15 21
-;; 2 3 4 5  6
-;; 1 1 1 1
-;; 0 0 0
-;;
-;;   -4  5 10 13 16 21 30 45
-;;     9  5  3  3  5  9 15
-;;      -4  -2  0  2  4  6
-;;         2  2  2  2  2
-;;           0  0  0  0
-
 (defn parse-09 [input] (->> (s/split input #"\n")
                             (map #(->> (s/split % #" ")
                                        (map parse-long)))))
 
 (defn convergence [a]
-  ;; (pprint/pprint a)
   (loop [sq a r (cons (first a) '())]
     (let [diff (->> (take-while #(= 2 (count %)) (partition-all 2 1 sq))
                     (map #(- (second %) (first %))))]
-      ;; (pprint/pprint diff)
       (if (every? zero? diff)
         r
         (recur diff (cons (first diff) r))))))
 
 (defn backtrack [a]
-  ;; (pprint/pprint a)
   (reduce (fn [r n]
             (- n r)) 0 a))
 
@@ -438,3 +424,115 @@ XXX = (XXX, XXX)")
 
 ;;Day 10
 ;;-------------------------------------------------------------------
+
+(def sample-10-a
+  "-L|F7
+7S-7|
+L|7||
+-L-J|
+L|-JF")
+
+(def sample-10-b
+  "7-F7-
+.FJ|7
+SJLL7
+|F--J
+LJ.LJ")
+
+(def down #{"|" "L" "J"})
+
+(def up #{"|" "F" "7"})
+
+(def left #{"-" "L" "F"})
+
+(def right #{"-" "J" "7"})
+
+(def possible-paths
+  {"|" [nil up nil down]
+   "-" [right nil left nil]
+   "F" [right nil nil down]
+   "7" [nil nil left down]
+   "J" [nil up left nil]
+   "L" [right up nil nil]
+   "S" [right up left down]
+   "." [nil nil nil nil]})
+
+(defn next-poss [[x y] row-size column-size]
+  (map (fn [[x y]]
+         (if (and (>= x 0)
+                  (< x row-size)
+                  (< y column-size)
+                  (>= y 0))
+           [x y]
+           nil))
+       [[x (+ y 1)]
+        [(- x 1) y]
+        [x (- y 1)]
+        [(+ x 1) y]]))
+
+(defn valid-paths [a paths]
+  (map (fn [[a paths]]
+         (if (contains? paths a)
+           a
+           nil))
+       (partition 2 (interleave paths (possible-paths a)))))
+
+(defn get-pos [data pos]
+  (if (nil? pos)
+    nil
+    (nth (nth data (first pos)) (second pos))))
+
+(defn next-index [path data row-size column-size prev-pos]
+  (let [current (get-pos data path)
+        next-positions (next-poss path row-size column-size)
+        valid-paths (valid-paths current (map #(get-pos data %) next-positions))]
+    (first (filter #(and (not= prev-pos (first %))
+                         (some? (second %))) (zipmap next-positions  valid-paths)))))
+
+(defn area
+  "https://en.wikipedia.org/wiki/Shoelace_formula"
+  [loop]
+  (abs (/ (reduce + (map (fn [[[x1 y1] [x2 y2]]]
+                           (- (* x1 y2) (* x2 y1))) (partition 2 1  loop)))
+          2)))
+
+(defn interior-points
+  "https://en.wikipedia.org/wiki/Pick%27s_theorem"
+  [loop]
+  (- (+ 1 (area loop)) (/ (- (count loop) 1) 2)))
+
+(defn day-10 [input]
+  (let [data (->> (s/split input #"\n")
+                  (map #(s/split % #"")))
+        row-size (count (first data))
+        column-size (count data)
+        starting-pos (->> data
+                          (map-indexed (fn [i row]
+                                         (map-indexed (fn [j c]
+                                                        (when (= c "S") [i j])) row)))
+                          (apply concat)
+                          (filter identity)
+                          (first))
+
+        next-positions (next-poss starting-pos row-size column-size)
+        some-path  (first (filter #(some? (second %)) (zipmap next-positions (valid-paths (get-pos data starting-pos)
+                                                                                          (map #(get-pos data %)
+                                                                                               next-positions)))))
+
+        paths (loop [path some-path r [starting-pos (first some-path)] prev-pos starting-pos]
+                (if (nil? (second path))
+                  r
+                  (let [next-idx (next-index (first path) data row-size column-size prev-pos)
+                        r (if (some? (first next-idx))
+                            (conj r (first next-idx))
+                            (conj r starting-pos))]
+                    (recur next-idx r (first path)))))]
+
+    (pprint/pprint (interior-points paths))))
+
+;; (day-10 sample-10-a)
+;; (day-10 sample-10-b)
+;; (day-10 (slurp "resources/day-10.txt"))
+
+;; Day 11
+;; -------------------------------------------------------------------
