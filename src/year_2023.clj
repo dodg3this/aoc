@@ -1,5 +1,6 @@
 (ns year-2023
   (:require [clojure.string :as s]
+            [clojure.core.reducers :as r]
             [clojure.pprint :as pprint]))
 
 ;;Day 01
@@ -535,4 +536,79 @@ LJ.LJ")
 ;; (day-10 (slurp "resources/day-10.txt"))
 
 ;; Day 11
+;; -------------------------------------------------------------------
+
+(def sample-11
+  "...#......
+.......#..
+#.........
+..........
+......#...
+.#........
+.........#
+..........
+.......#..
+#...#.....")
+
+(defn invert-matrix [m]
+  (for [r (range (count (first m)))
+        :let [col (map #(nth % r) m)]]
+    col))
+
+(def factor 1000000)
+
+(defn expand [r row]
+  (if (every? #(or (= "." %) (vector? %)) row)
+    (conj r (map #(if (vector? %) (conj % factor) [factor]) row))
+    (conj r row)))
+
+(defn find-coordinates
+  ([matrix]
+   (loop [m matrix y 0 r []]
+     (if (empty? m)
+       r
+       (let [row (first m)
+             coordinates (find-coordinates row y)
+             delta-y (or (some #(when (vector? %) (second %)) row) 1)]
+         (recur (rest m) (+ y delta-y) (concat r coordinates))))
+     )
+   )
+  ([row y]
+   (loop [row row x 0 r []]
+     (if (empty? row)
+       r
+       (let [c (first row)]
+         (cond
+           (= "." c) (recur (rest row) (inc x) r)
+           (vector? c) (recur (rest row) (+ x (first c)) r)
+           (= "#" c) (recur (rest row) (inc x) (conj r [x y]))))))))
+
+(defn shortest-distances [points]
+  (for [[x1 y1] points
+        [x2 y2] points
+
+        :let [distance (+ (Math/abs (- x1 x2))
+                          (Math/abs (- y1 y2)))]
+        :when (not= 0 distance)]
+    distance))
+
+(defn day-11 [input]
+  (/
+    (->> (s/split input #"\n")
+         (map #(s/split % #""))
+         (r/reduce expand [])
+         (invert-matrix)
+         (r/reduce expand [])
+         (invert-matrix)
+         (find-coordinates)
+         (shortest-distances)
+         (apply +)
+         )
+    2)
+  )
+
+;; (day-11 sample-11)
+;; (day-11 (slurp "resources/day-11.txt"))
+
+;; Day 12
 ;; -------------------------------------------------------------------
