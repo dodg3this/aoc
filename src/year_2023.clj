@@ -551,37 +551,9 @@ LJ.LJ")
 #...#.....")
 
 (defn invert-matrix [m]
-  (for [r (range (count (first m)))
-        :let [col (map #(nth % r) m)]]
-    col))
+  (apply mapv vector m))
 
-(def factor 1000000)
-
-(defn expand [r row]
-  (if (every? #(or (= "." %) (vector? %)) row)
-    (conj r (map #(if (vector? %) (conj % factor) [factor]) row))
-    (conj r row)))
-
-(defn find-coordinates
-  ([matrix]
-   (loop [m matrix y 0 r []]
-     (if (empty? m)
-       r
-       (let [row (first m)
-             coordinates (find-coordinates row y)
-             delta-y (or (some #(when (vector? %) (second %)) row) 1)]
-         (recur (rest m) (+ y delta-y) (concat r coordinates))))
-     )
-   )
-  ([row y]
-   (loop [row row x 0 r []]
-     (if (empty? row)
-       r
-       (let [c (first row)]
-         (cond
-           (= "." c) (recur (rest row) (inc x) r)
-           (vector? c) (recur (rest row) (+ x (first c)) r)
-           (= "#" c) (recur (rest row) (inc x) (conj r [x y]))))))))
+(def expansion-factor 1000000)
 
 (defn shortest-distances [points]
   (for [[x1 y1] points
@@ -592,23 +564,35 @@ LJ.LJ")
         :when (not= 0 distance)]
     distance))
 
+(defn expansions [matrix]
+  (map (fn [[row column]]
+         (letfn [(factor [x]
+                   (if (every? #(= "." %) x)
+                     expansion-factor
+                     1))]
+           [(factor row) (factor column)])) matrix))
+
+(defn coordinates [m]
+  (let [expns (expansions (partition 2 (interleave m (invert-matrix m))))]
+    (->> (map-indexed (fn [i row]
+                        (map-indexed (fn [j c]
+                                       (if (= "#" c)
+                                         [(reduce + (map first (take i expns))) (reduce + (map second (take j  expns)))]
+                                         nil)) row)) m)
+         (apply concat)
+         (filter identity))))
+
 (defn day-11 [input]
   (/
-    (->> (s/split input #"\n")
-         (map #(s/split % #""))
-         (r/reduce expand [])
-         (invert-matrix)
-         (r/reduce expand [])
-         (invert-matrix)
-         (find-coordinates)
-         (shortest-distances)
-         (apply +)
-         )
-    2)
-  )
+   (->> (s/split input #"\n")
+        (map #(s/split % #""))
+        (coordinates)
+        (shortest-distances)
+        (apply +))
+   2))
 
-;; (day-11 sample-11)
-;; (day-11 (slurp "resources/day-11.txt"))
+;; (pprint/pprint (day-11 sample-11))
+;; (time (day-11 (slurp "resources/day-11.txt")))
 
 ;; Day 12
 ;; -------------------------------------------------------------------
