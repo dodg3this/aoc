@@ -268,7 +268,7 @@ QQQJA 483")
       (update f (first (keys f)) + jokers)
       {\J jokers})))
 
-(defn type [freq]
+(defn hand-type [freq]
   (let [f freq
         v (vals freq)]
     (cond
@@ -292,16 +292,16 @@ QQQJA 483")
         (> c1 c2)))))
 
 (defn strongest [hand1 hand2]
-  (let [t1 (type hand1)
-        t2 (type hand2)]
+  (let [t1 (hand-type hand1)
+        t2 (hand-type hand2)]
     (if (= (type-hierarchy t1) (type-hierarchy t2))
       (tie-breaker (map cards-b hand1) (map cards-b hand2))
       ;; (stronger (sort-by-vals (map cards hand1)) (sort-by-vals (map cards hand2))) ;;real poker rules
       (> (type-hierarchy t1) (type-hierarchy t2)))))
 
 (defn strongest-b [hand1 hand2]
-  (let [t1 (type (joke hand1))
-        t2 (type (joke hand2))]
+  (let [t1 (hand-type (joke hand1))
+        t2 (hand-type (joke hand2))]
     (if (= (type-hierarchy t1) (type-hierarchy t2))
       (tie-breaker (map cards-b hand1) (map cards-b hand2))
       (> (type-hierarchy t1) (type-hierarchy t2)))))
@@ -631,8 +631,8 @@ LJ.LJ")
   (memoize (fn
              [pattern size splits]
              (pprint/pprint pattern)
-                (pprint/pprint size)
-                (pprint/pprint splits)
+             (pprint/pprint size)
+             (pprint/pprint splits)
              (pprint/pprint (reduce + (rest splits)))
              (pprint/pprint (count (rest splits)))
              (pprint/pprint "**********")
@@ -640,7 +640,7 @@ LJ.LJ")
                    r (rest splits)
                    after (+ (reduce + r) (count r))
                    cnt
-                   (apply + (for [before (range (- (+ size 1) ( + a after)))
+                   (apply + (for [before (range (- (+ size 1) (+ a after)))
                                   :while (or (zero? before) (and  (not= \. (nth pattern (- before 1))) (not= \? (nth pattern (- before 1)))))]
                               (do (pprint/pprint (str a " " before " " after))
                                   (cond
@@ -651,10 +651,9 @@ LJ.LJ")
                                                                                                                 1
                                                                                                                 0)
                                                                                                               (or (= \? (nth pattern (+ before a))) (= \. (nth pattern (+ before a))))
-                                                                                                              (valid-combinations (subs pattern (+ before a 1)) (- size (+ before a 1)) r )
+                                                                                                              (valid-combinations (subs pattern (+ before a 1)) (- size (+ before a 1)) r)
                                                                                                               :else 0))
-                                    :else 0))
-                              ))]
+                                    :else 0))))]
                (pprint/pprint pattern)
                (pprint/pprint (str "@@@@@@@ " cnt))
                cnt))))
@@ -673,13 +672,10 @@ LJ.LJ")
           ;; m (s/join "?" (repeat 2 m) )
           ;; cs (s/join "," (repeat 2 cs))
           req-match (map parse-long (s/split cs #","))]
-      (valid-combinations m (count m) req-match )
+      (valid-combinations m (count m) req-match)
       ;; (pprint/pprint (str "**********" m1))
       ;; [(valid-combinations req-match m) (valid-combinations req-match m1)]
       )))
-
-
-
 ;; (pprint/pprint (->> (s/split sample-12-a #"\n")
 ;;                     ;; (count)
 ;;                     ;; (take 5)
@@ -712,50 +708,45 @@ LJ.LJ")
 #....#..#")
 
 (defn off-by [r1 r2]
- (count (filter identity (apply map #(not= %1 %2)  [r1 r2]))))
+  (count (filter identity (apply map #(not= %1 %2)  [r1 r2]))))
 
-(defn reflection-point [sqs]
-  (let [reflections (->> (map-indexed #(when %2 %1) (map #(zero? (off-by (first %) (second %))) (partition 2 1 sqs)))
-                  (filter identity)
-                  )
-        off-by-1s (->> (map-indexed #(when %2 %1) (map #(= 1 (off-by (first %) (second %))) (partition 2 1 sqs)))
-                  (filter identity)
-                  )]
-    (concat  (filter (fn [idx]  (let [freqs (->> [(reverse  (take (inc idx) sqs)) (drop (inc idx) sqs)]
-                                                  (apply interleave)
-                                                  (partition 2)
-                                                  (map #(off-by (first %) (second %)))
-                                                  frequencies)
+(defn reflection-indices [sqs off-factor]
+  (->> (map-indexed #(when %2 %1) (map #(= off-factor (off-by (first %) (second %))) (partition 2 1 sqs)))
+       (filter identity)))
 
-                                       ]
-                                   (and (= 1 (get freqs 1))
-                                        (= #{0 1} (into #{} (keys freqs))))
-                                   )) reflections)
-              (filter (fn [idx] (->> [(reverse  (take (inc idx) sqs)) (drop (inc idx) sqs)]
-                                     (apply interleave)
-                                     (partition 2)
-                                     rest
-                                     (every? #(zero? (off-by (first %) (second %)))))) off-by-1s))
-    )
-  )
+(defn reflected-rows [rows idx]
+  (->> [(reverse  (take (inc idx) rows)) (drop (inc idx) rows)]
+       (apply interleave)
+       (partition 2)))
+
+(defn reflection-point [rows]
+  (let [reflections (reflection-indices rows 0)
+        off-by-1s (reflection-indices rows 1)]
+    (first (concat (filter (fn [idx]  (let [off-bys (->> (reflected-rows rows idx)
+                                                         (map #(off-by (first %) (second %))))]
+                                        (= (frequencies off-bys)
+                                           {0 (dec (count off-bys)) 1 1}))) reflections)
+                   (filter (fn [idx] (->> (reflected-rows rows idx)
+                                          rest
+                                          (every? #(zero? (off-by (first %) (second %)))))) off-by-1s)))))
 
 (defn parse-input-13 [input]
   (->> (s/split input #"\n\n")
-     (map #(s/split % #"\n"))))
+       (map #(s/split % #"\n"))))
 
 (defn patterns [matrices]
   (->> matrices
        (map reflection-point)
-       (filter seq)
-       concat
-       (map first)
+       (filter some?)
        (map inc)
-       (apply +)
-       ))
+       (apply +)))
 
 (defn day-13 [input]
   (let [matrices (parse-input-13 input)]
     (+ (* 100 (patterns matrices))
        (patterns (map invert-matrix matrices)))))
 
-;; (day-13 (slurp "resources/day-13.txt"))
+(day-13 (slurp "resources/day-13.txt"))
+
+;; Day 14
+;; -------------------------------------------------------
