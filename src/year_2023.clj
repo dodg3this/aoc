@@ -1,6 +1,7 @@
 (ns year-2023
   (:require [clojure.string :as s]
             [clojure.core.reducers :as r]
+            [clojure.set :as set]
             [clojure.pprint :as pprint]))
 
 ;;Day 01
@@ -596,3 +597,165 @@ LJ.LJ")
 
 ;; Day 12
 ;; -------------------------------------------------------------------
+
+(def sample-12
+  "???.### 1,1,3
+.??..??...?##. 1,1,3
+?#?#?#?#?#?#?#? 1,3,1,6
+????.#...#... 4,1,1
+????.######..#####. 1,6,5
+?###???????? 3,2,1")
+
+(def sample-12-a
+
+  ".??..??...?##. 1,1,3")
+
+;; (defn valid-combinations [req-match r]
+;;   (let [possible-chars (map #(if (= \? %)
+;;                                [\. \#]
+;;                                [%]) r)
+;;         possible-combs
+;;         (map #(apply str %) (loop [pc possible-chars r #{[]}]
+;;                               (if (empty? pc)
+;;                                 r
+;;                                 (let [cs (first pc)
+;;                                       r (for [c cs
+;;                                               l r]
+;;                                           (conj l c))]
+;;                                   (recur (rest pc) r)))))]
+;;     (pprint/pprint (str "**********" (count valid-combs)))
+
+;;     (count (filter (fn [comb] (= (map count (re-seq #"\#+" comb)) req-match)) possible-combs))))
+
+(def valid-combinations
+  (memoize (fn
+             [pattern size splits]
+             (pprint/pprint pattern)
+                (pprint/pprint size)
+                (pprint/pprint splits)
+             (pprint/pprint (reduce + (rest splits)))
+             (pprint/pprint (count (rest splits)))
+             (pprint/pprint "**********")
+             (let [a (first splits)
+                   r (rest splits)
+                   after (+ (reduce + r) (count r))
+                   cnt
+                   (apply + (for [before (range (- (+ size 1) ( + a after)))
+                                  :while (or (zero? before) (and  (not= \. (nth pattern (- before 1))) (not= \? (nth pattern (- before 1)))))]
+                              (do (pprint/pprint (str a " " before " " after))
+                                  (cond
+                                    (every? #(or (= \? %) (= \# %)) (subs pattern before (+ before a))) (do (pprint/pprint "here")
+                                                                                                            (cond
+                                                                                                              (empty? r)
+                                                                                                              (if (every? #(or (= \? %) (= \. %)) (subs pattern (+ before a)))
+                                                                                                                1
+                                                                                                                0)
+                                                                                                              (or (= \? (nth pattern (+ before a))) (= \. (nth pattern (+ before a))))
+                                                                                                              (valid-combinations (subs pattern (+ before a 1)) (- size (+ before a 1)) r )
+                                                                                                              :else 0))
+                                    :else 0))
+                              ))]
+               (pprint/pprint pattern)
+               (pprint/pprint (str "@@@@@@@ " cnt))
+               cnt))))
+
+(defn calculate-valid-combs [lines]
+  (for [l lines]
+    (let [[m cs] (s/split l #" ")
+          ;; m1 (cond
+          ;;      (= \. (last m)) (str "?" m)
+          ;;      (and (= \# (last m))
+          ;;           (= \. (first m))) (str m "?")
+          ;;      (and (= \# (last m))
+          ;;           (= \? (first m))) (str m "?")
+          ;;      (= \# (last m)) (str m ".")
+          ;;      :else (str "?" m))
+          ;; m (s/join "?" (repeat 2 m) )
+          ;; cs (s/join "," (repeat 2 cs))
+          req-match (map parse-long (s/split cs #","))]
+      (valid-combinations m (count m) req-match )
+      ;; (pprint/pprint (str "**********" m1))
+      ;; [(valid-combinations req-match m) (valid-combinations req-match m1)]
+      )))
+
+
+
+;; (pprint/pprint (->> (s/split sample-12-a #"\n")
+;;                     ;; (count)
+;;                     ;; (take 5)
+;;                     (calculate-valid-combs)
+;;                     ;; (map #(apply * (conj (repeat 4 (second %)) (first %))))
+;;                     ;; (extrapolate)
+;;                     ;; (apply map *)
+
+;;                     ;; (apply +)
+;;                     ))
+
+;; Day 13
+;; -------------------------------------------------------
+
+(def sample-13
+  "#.##..##.
+..#.##.#.
+##......#
+##......#
+..#.##.#.
+..##..##.
+#.#.##.#.
+
+#...##..#
+#....#..#
+..##..###
+#####.##.
+#####.##.
+..##..###
+#....#..#")
+
+(defn off-by [r1 r2]
+ (count (filter identity (apply map #(not= %1 %2)  [r1 r2]))))
+
+(defn reflection-point [sqs]
+  (let [reflections (->> (map-indexed #(when %2 %1) (map #(zero? (off-by (first %) (second %))) (partition 2 1 sqs)))
+                  (filter identity)
+                  )
+        off-by-1s (->> (map-indexed #(when %2 %1) (map #(= 1 (off-by (first %) (second %))) (partition 2 1 sqs)))
+                  (filter identity)
+                  )]
+    (concat  (filter (fn [idx]  (let [freqs (->> [(reverse  (take (inc idx) sqs)) (drop (inc idx) sqs)]
+                                                  (apply interleave)
+                                                  (partition 2)
+                                                  (map #(off-by (first %) (second %)))
+                                                  frequencies)
+
+                                       ]
+                                   (and (= 1 (get freqs 1))
+                                        (= #{0 1} (into #{} (keys freqs))))
+                                   )) reflections)
+              (filter (fn [idx] (->> [(reverse  (take (inc idx) sqs)) (drop (inc idx) sqs)]
+                                     (apply interleave)
+                                     (partition 2)
+                                     rest
+                                     (every? #(zero? (off-by (first %) (second %)))))) off-by-1s))
+    )
+  )
+
+(defn parse-input-13 [input]
+  (->> (s/split input #"\n\n")
+     (map #(s/split % #"\n"))))
+
+(defn patterns [matrices]
+  (->> matrices
+       (map reflection-point)
+       (filter seq)
+       concat
+       (map first)
+       (map inc)
+       (apply +)
+       ))
+
+(defn day-13 [input]
+  (let [matrices (parse-input-13 input)]
+    (+ (* 100 (patterns matrices))
+       (patterns (map invert-matrix matrices)))))
+
+;; (day-13 (slurp "resources/day-13.txt"))
