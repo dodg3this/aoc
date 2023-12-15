@@ -746,7 +746,89 @@ LJ.LJ")
     (+ (* 100 (patterns matrices))
        (patterns (map invert-matrix matrices)))))
 
-(day-13 (slurp "resources/day-13.txt"))
+;; (time (day-13 (slurp "resources/day-13.txt")))
 
 ;; Day 14
+;; -------------------------------------------------------
+
+(def sample-14
+  "O....#....
+O.OO#....#
+.....##...
+OO.#O....O
+.O.....O#.
+O.#..O.#.#
+..O..#O..O
+.......O..
+#....###..
+#OO..#....")
+
+(def col-size 100)
+
+(defn transpose [matrix]
+  (apply map vector matrix))
+
+(defn load [col]
+  (let [_ (count col)]
+    (reduce (fn [[r before] [_chunk-idx [chunk-size rr-count]]]
+              (let [start-val (- col-size before)]
+                [(+ r  (apply + (range start-val (- start-val rr-count) -1)))  (inc (+ before chunk-size))]))
+            [0 0] col)))
+
+(defn day-14 [input]
+  (->> (s/split input #"\n")
+       transpose
+       (map #(map-indexed (fn [i chunk]
+                            [i [(count chunk) (count (filter (fn [char]
+                                                               (= \O char)) chunk))]]) (s/split (apply str %) #"#")))
+       (map load)
+       (map first)
+       (apply +)))
+
+;;Day 15
+;;--------------------------------------------------------
+
+(def sample-15
+  "rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7")
+
+(defn hash-256 [strng]
+  (reduce (fn [r char]
+            (mod (* 17 (+ r (int char))) 256)) 0 strng))
+
+(def lens-regex
+  #"(?<box>\w+)(?<operation>=|-)(?<focallength>\d*)")
+
+(defn find-and-replace [box [label focal-length]]
+  (if (some #(= label (first %)) box)
+    (vec (map (fn [b]
+                (if (= label (first b))
+                  [label focal-length]
+                  b)) box))
+    (conj box [label focal-length])))
+
+(defn find-and-remove [box label]
+  (vec (remove #(= label (first %)) box)))
+
+(defn follow [steps]
+  (let [state (reduce (fn [r [label box-idx operation focallength]]
+                        (let [new-r  (condp = operation
+                                       "=" (update-in r [box-idx]  (fnil find-and-replace []) [label focallength])
+                                       "-" (update-in r [box-idx] (fnil find-and-remove []) label))]
+                          new-r)) {} steps)]
+    state))
+
+(defn day-15 [input]
+  (->> (s/split (s/trim-newline input) #",")
+       (map #(let [matcher (re-matcher lens-regex %)
+                   _              (.matches matcher)
+                   box (.group matcher "box")]
+               [box (hash-256 box) (.group matcher "operation") (parse-long (.group matcher "focallength"))]))
+       follow
+       (reduce-kv (fn [r k v]
+                    (+ r (* (inc k) (reduce + (map-indexed #(* (inc %1) (second %2)) v))))) 0)))
+
+;; (day-15 sample-15)
+;; (day-15 (slurp "resources/day-15.txt"))
+
+;; Day 16
 ;; -------------------------------------------------------
